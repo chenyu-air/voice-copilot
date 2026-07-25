@@ -1,0 +1,1010 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>皮皮语音助手 v2.0</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background: #f8fafc; -webkit-tap-highlight-color: transparent; }
+        .app { display: flex; flex-direction: column; height: 100%; max-width: 480px; margin: 0 auto; background: #f8fafc; box-shadow: 0 4px 20px rgba(0,0,0,0.05); position: relative; }
+        .header { padding: 16px 20px 14px; padding-top: calc(16px + env(safe-area-inset-top)); display: flex; align-items: center; justify-content: space-between; background: white; border-bottom: 1px solid #e2e8f0; box-shadow: 0 2px 8px rgba(0,0,0,0.04); position: relative; z-index: 10; flex-shrink: 0; }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .header-info h1 { font-size: 18px; font-weight: 600; color: #1e293b; }
+        .status { font-size: 12px; color: #64748b; margin-top: 2px; }
+        .status.connected { color: #22c55e; }
+        .status.connecting { color: #f59e0b; }
+        .header-right { display: flex; align-items: center; gap: 8px; flex: 1; justify-content: flex-end; min-width: 0; }
+        .btn-continuous { padding: 6px 12px; border-radius: 20px; background: #f1f5f9; color: #64748b; font-size: 12px; font-weight: 500; border: 1px solid #e2e8f0; cursor: pointer; transition: all 0.3s; flex-shrink: 0; }
+        .btn-continuous.active { background: #4D6BFE; color: white; border-color: #4D6BFE; }
+        .model-select { padding: 6px 10px; border: 1px solid #e2e8f0; border-radius: 12px; background: white; color: #475569; font-size: 12px; cursor: pointer; outline: none; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .model-select option { background: white; color: #475569; }
+        .chat-area { flex: 1; overflow-y: auto; padding: 15px; padding-top: 190px; padding-bottom: 20px; scrollbar-width: none; }
+        .chat-area::-webkit-scrollbar { display: none; }
+        .chat-message { display: flex; margin-bottom: 18px; animation: fadeIn 0.3s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .chat-message.user { justify-content: flex-end; }
+        .chat-message.assistant { justify-content: flex-start; }
+        .msg-avatar { width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0; margin-top: 2px; overflow: hidden; background: #f0f0f0; }
+        .assistant .msg-avatar { background: linear-gradient(135deg, #4D6BFE, #7B8BFF); }
+        .assistant .msg-avatar img { width: 100%; height: 100%; object-fit: cover; }
+        .user .msg-avatar img { width: 100%; height: 100%; object-fit: cover; }
+        .msg-content { max-width: 75%; margin: 0 10px; }
+        .chat-bubble { padding: 14px 18px; border-radius: 20px; font-size: 15px; line-height: 1.6; word-break: break-word; }
+        .user .chat-bubble { background: #4D6BFE; color: white; border-bottom-right-radius: 6px; box-shadow: 0 2px 8px rgba(77, 107, 254, 0.2); }
+        .assistant .chat-bubble { background: white; color: #1e293b; border-bottom-left-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); border: 1px solid #e2e8f0; }
+        .input-area { min-height: 20vh; padding: 16px 15px 24px; padding-bottom: calc(24px + env(safe-area-inset-bottom)); background: white; border-top: 1px solid #e2e8f0; display: flex; align-items: flex-start; gap: 12px; box-shadow: 0 -2px 10px rgba(0,0,0,0.04); }
+        .btn-voice { margin-top: 4px; width: 52px; height: 52px; border-radius: 50%; border: none; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-size: 24px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.3s; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4); }
+        .btn-voice:active { transform: scale(0.95); }
+        .btn-voice.active { animation: pulse-ring 1.5s infinite; background: #f44336; box-shadow: 0 0 0 0 rgba(244, 67, 54, 0.7); }
+        @keyframes pulse-ring { 0% { box-shadow: 0 0 0 0 rgba(244, 67, 54, 0.7); } 70% { box-shadow: 0 0 0 15px rgba(244, 67, 54, 0); } 100% { box-shadow: 0 0 0 0 rgba(244, 67, 54, 0); } }
+        .input-wrapper { margin-top: 4px; flex: 1; background: white; border-radius: 26px; padding: 6px; display: flex; align-items: center; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+        .text-input { flex: 1; padding: 14px 16px; border: none; background: transparent; font-size: 15px; outline: none; }
+        .btn-send { width: 44px; height: 44px; border-radius: 50%; border: none; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.3s; opacity: 0.5; pointer-events: none; }
+        .btn-send.active { opacity: 1; pointer-events: auto; }
+        .voice-status { position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%); padding: 12px 24px; background: rgba(0,0,0,0.7); color: white; font-size: 14px; border-radius: 30px; display: none; z-index: 100; backdrop-filter: blur(10px); }
+        .voice-status.show { display: block; animation: slideUp 0.3s ease; }
+        @keyframes slideUp { from { opacity: 0; transform: translateX(-50%) translateY(20px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
+        .tts-status { position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%); padding: 12px 24px; background: rgba(102, 126, 234, 0.9); color: white; font-size: 14px; border-radius: 30px; display: none; z-index: 100; backdrop-filter: blur(10px); }
+        .tts-status.show { display: block; animation: slideUp 0.3s ease; }
+        .typing-indicator { display: flex; gap: 4px; padding: 8px 16px; }
+        .typing-dot { width: 6px; height: 6px; background: #999; border-radius: 50%; animation: typing 1.4s infinite ease-in-out both; }
+        .typing-dot:nth-child(1) { animation-delay: -0.32s; }
+        .typing-dot:nth-child(2) { animation-delay: -0.16s; }
+        @keyframes typing { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1); } }
+
+        .floating-avatar-container {
+            position: absolute;
+            top: 120px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 5;
+            width: 97px;
+            height: 97px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .avatar-wrapper {
+            width: 97px;
+            height: 97px;
+            border-radius: 29px;
+            background: linear-gradient(135deg, #4D6BFE, #7B8BFF);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 10px 30px -8px rgba(77, 107, 254, 0.3);
+            animation: avatarFloat 3s ease-in-out infinite;
+            position: relative;
+            z-index: 2;
+        }
+
+        .avatar-wrapper img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 29px;
+            display: block;
+            box-shadow: 0 0 0 2px #fff;
+        }
+
+        @keyframes avatarFloat {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-5px); }
+        }
+
+        .wave-ring {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 97px;
+            height: 97px;
+            border-radius: 29px;
+            border: 2px solid #4D6BFE;
+            transform: translate(-50%, -50%) scale(1);
+            opacity: 0;
+            z-index: 1;
+        }
+
+        .wave-ring.active {
+            animation: wavePulse 1.6s ease-out infinite;
+            opacity: 0.6;
+        }
+
+        .wave-ring:nth-child(1) { animation-delay: 0s; }
+        .wave-ring:nth-child(2) { animation-delay: 0.4s; }
+        .wave-ring:nth-child(3) { animation-delay: 0.8s; }
+
+        @keyframes wavePulse {
+            0% { transform: translate(-50%, -50%) scale(1); opacity: 0.6; }
+            100% { transform: translate(-50%, -50%) scale(1.8); opacity: 0; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .avatar-wrapper { animation: none; }
+            .wave-ring.active { animation: none !important; }
+        }
+    </style>
+</head>
+<body>
+    <div class="app">
+        <div class="header">
+            <div class="header-left">
+                <div class="header-info">
+                    <h1>皮皮语音助手</h1>
+                    <div class="status connecting" id="status">连接中...</div>
+                </div>
+            </div>
+            <div class="header-right">
+                <button class="btn-continuous" id="continuousBtn">连续对话</button>
+                <select class="model-select" id="modelSelect">
+                    <option value="">加载中...</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="floating-avatar-container">
+            <div class="wave-ring"></div>
+            <div class="wave-ring"></div>
+            <div class="wave-ring"></div>
+            <div class="avatar-wrapper">
+                <img src="/avatar.png" alt="AI Avatar">
+            </div>
+        </div>
+
+        <div class="chat-area" id="chatArea"></div>
+
+        <div class="voice-status" id="voiceStatus">🎤 请开始说话...</div>
+        <div class="tts-status" id="ttsStatus">🔊 正在回复...</div>
+
+        <div class="input-area">
+            <button class="btn-voice" id="voiceBtn">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                    <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                    <line x1="12" y1="19" x2="12" y2="23"/>
+                    <line x1="8" y1="23" x2="16" y2="23"/>
+                </svg>
+            </button>
+            <div class="input-wrapper">
+                <input type="text" class="text-input" id="textInput" placeholder="输入消息...">
+                <button class="btn-send" id="sendBtn">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="22" y1="2" x2="11" y2="13"/>
+                        <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const statusEl = document.getElementById('status');
+        const modelSelect = document.getElementById('modelSelect');
+        const chatArea = document.getElementById('chatArea');
+        const textInput = document.getElementById('textInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const voiceBtn = document.getElementById('voiceBtn');
+        const voiceStatus = document.getElementById('voiceStatus');
+        const ttsStatus = document.getElementById('ttsStatus');
+        const continuousBtn = document.getElementById('continuousBtn');
+        const waveRings = document.querySelectorAll('.floating-avatar-container .wave-ring');
+
+        let ws = null;
+        let isConnected = false;
+        let messages = [];
+        let isListening = false;
+        let isContinuousMode = false;
+        let isSpeaking = false;
+        let assistantReplyText = '';
+
+        function log(msg) {
+            console.log('[皮皮助手]', msg);
+        }
+
+        function setStatus(text, type) {
+            statusEl.textContent = text;
+            statusEl.className = 'status ' + type;
+        }
+
+        function startWaveAnimation() {
+            waveRings.forEach(ring => ring.classList.add('active'));
+        }
+
+        function stopWaveAnimation() {
+            waveRings.forEach(ring => ring.classList.remove('active'));
+        }
+
+        function addMessage(text, isUser) {
+            const msgDiv = document.createElement('div');
+            msgDiv.className = 'chat-message ' + (isUser ? 'user' : 'assistant');
+            
+            const avatar = document.createElement('div');
+            avatar.className = 'msg-avatar';
+            
+            if (isUser) {
+                const img = document.createElement('img');
+                img.src = '/user.png';
+                img.alt = 'User';
+                avatar.appendChild(img);
+            } else {
+                const img = document.createElement('img');
+                img.src = '/avatar.png';
+                img.alt = 'AI';
+                avatar.appendChild(img);
+            }
+            
+            const content = document.createElement('div');
+            content.className = 'msg-content';
+            
+            const bubble = document.createElement('div');
+            bubble.className = 'chat-bubble';
+            bubble.textContent = text;
+            
+            content.appendChild(bubble);
+            msgDiv.appendChild(avatar);
+            msgDiv.appendChild(content);
+            
+            chatArea.appendChild(msgDiv);
+            chatArea.scrollTop = chatArea.scrollHeight;
+            return bubble;
+        }
+
+        function loadModels() {
+            fetch('/api/models').then(res => res.json()).then(data => {
+                if (data.models) {
+                    modelSelect.innerHTML = '';
+                    data.models.forEach(m => {
+                        const opt = document.createElement('option');
+                        opt.value = m.name;
+                        opt.textContent = m.name.length > 20 ? m.name.slice(0, 20) + '...' : m.name;
+                        modelSelect.appendChild(opt);
+                    });
+                }
+            });
+        }
+
+        function connectWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/`;
+            log('连接WebSocket: ' + wsUrl);
+            
+            ws = new WebSocket(wsUrl);
+
+            ws.onopen = () => {
+                isConnected = true;
+                setStatus('已连接', 'connected');
+                log('WebSocket连接成功');
+                loadModels();
+            };
+
+            ws.onclose = () => {
+                isConnected = false;
+                setStatus('连接断开', 'connecting');
+            };
+
+            ws.onmessage = (e) => {
+                try {
+                    const data = JSON.parse(e.data);
+                    if (data.type === 'stream') {
+                        let lastMsg = chatArea.lastElementChild;
+                        if (lastMsg && lastMsg.id === 'thinkingMsg') {
+                            const bubble = lastMsg.querySelector('.chat-bubble');
+                            bubble.innerHTML = '';
+                            bubble.textContent = data.content;
+                            lastMsg.removeAttribute('id');
+                        } else if (lastMsg && lastMsg.classList.contains('assistant')) {
+                            const bubble = lastMsg.querySelector('.chat-bubble');
+                            bubble.textContent += data.content;
+                        } else {
+                            addMessage(data.content, false);
+                            assistantReplyText = data.content;
+                            return;
+                        }
+                        assistantReplyText += data.content;
+                        chatArea.scrollTop = chatArea.scrollHeight;
+                    } else if (data.type === 'done') {
+                        log('响应完成，开始语音播放');
+                        log('完整回复长度: ' + assistantReplyText.length);
+                        log('完整回复前50字: ' + assistantReplyText.slice(0, 50));
+                        if (!assistantReplyText) {
+                            log('警告: assistantReplyText为空');
+                        }
+                        speakText(assistantReplyText);
+                    } else if (data.type === 'error') {
+                        const thinkingMsg = document.getElementById('thinkingMsg');
+                        if (thinkingMsg) {
+                            thinkingMsg.remove();
+                        }
+                        addMessage('❌ 错误: ' + data.message, false);
+                    }
+                } catch (err) {
+                    log('解析消息失败:', err);
+                }
+            };
+        }
+
+        function sendMessage(text) {
+            if (!text.trim() || !isConnected) return;
+            addMessage(text, true);
+            textInput.value = '';
+            updateSendBtn();
+            
+            const msgDiv = document.createElement('div');
+            msgDiv.className = 'chat-message assistant';
+            msgDiv.id = 'thinkingMsg';
+            
+            const avatar = document.createElement('div');
+            avatar.className = 'msg-avatar';
+            const img = document.createElement('img');
+            img.src = '/avatar.png';
+            img.alt = 'AI';
+            avatar.appendChild(img);
+            
+            const content = document.createElement('div');
+            content.className = 'msg-content';
+            
+            const bubble = document.createElement('div');
+            bubble.className = 'chat-bubble';
+            
+            const indicator = document.createElement('div');
+            indicator.className = 'typing-indicator';
+            indicator.innerHTML = '<span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span>';
+            bubble.appendChild(indicator);
+            
+            content.appendChild(bubble);
+            msgDiv.appendChild(avatar);
+            msgDiv.appendChild(content);
+            
+            chatArea.appendChild(msgDiv);
+            chatArea.scrollTop = chatArea.scrollHeight;
+            
+            assistantReplyText = '';
+            
+            messages.push({ role: 'user', content: text });
+            
+            ws.send(JSON.stringify({
+                type: 'chat',
+                model: modelSelect.value || 'Qwen3.5:latest',
+                messages: messages
+            }));
+        }
+
+        let speechUnlocked = false;
+        let audioPlayUnlocked = false;
+        let availableVoices = [];
+
+        if ('speechSynthesis' in window) {
+            availableVoices = window.speechSynthesis.getVoices();
+            window.speechSynthesis.onvoiceschanged = () => {
+                availableVoices = window.speechSynthesis.getVoices();
+                log('语音列表已加载: ' + availableVoices.length + '个');
+            };
+        }
+
+        function unlockSpeech() {
+            if (speechUnlocked) return;
+            if (!('speechSynthesis' in window)) return;
+            
+            try {
+                const unlockUtt = new SpeechSynthesisUtterance('');
+                unlockUtt.volume = 0;
+                unlockUtt.lang = 'zh-CN';
+                window.speechSynthesis.speak(unlockUtt);
+                speechUnlocked = true;
+                log('语音合成已解锁');
+            } catch(e) {
+                log('语音合成解锁失败:', e);
+            }
+        }
+
+        function unlockAudioPlay() {
+            if (audioPlayUnlocked) return;
+            try {
+                const silentAudio = new Audio('data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=');
+                silentAudio.volume = 0.01;
+                silentAudio.play().then(() => {
+                    audioPlayUnlocked = true;
+                    log('Audio播放已解锁');
+                    silentAudio.pause();
+                }).catch(e => {
+                    log('Audio解锁失败:', e.message);
+                });
+            } catch(e) {
+                log('Audio解锁异常:', e);
+            }
+        }
+
+        function cleanTextForTTS(text) {
+            if (!text) return '';
+            text = text.replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '');
+            text = text.replace(/[️⃣⏰✅❌⚠️🔊🎙️🎤🔄]/g, '');
+            text = text.replace(/\s+/g, ' ');
+            return text.trim();
+        }
+
+        async function speakText(text) {
+            const cleanText = cleanTextForTTS(text);
+            if (!cleanText) {
+                if (isContinuousMode) startListening();
+                return;
+            }
+            
+            log('开始语音播放，文本长度: ' + cleanText.length);
+            isSpeaking = true;
+            ttsStatus.classList.add('show');
+            startWaveAnimation();
+            
+            await tryBackendTTS(cleanText);
+        }
+
+        function tryNativeTTS(text) {
+            return new Promise((resolve) => {
+                if (!('speechSynthesis' in window)) {
+                    log('浏览器不支持speechSynthesis');
+                    resolve(false);
+                    return;
+                }
+
+                try {
+                    window.speechSynthesis.cancel();
+                    
+                    const utterance = new SpeechSynthesisUtterance(text);
+                    utterance.lang = 'zh-CN';
+                    utterance.rate = 1.0;
+                    utterance.pitch = 1.0;
+                    utterance.volume = 1.0;
+                    
+                    const zhVoices = availableVoices.filter(v => v.lang.startsWith('zh'));
+                    if (zhVoices.length > 0) {
+                        utterance.voice = zhVoices[0];
+                        log('使用语音: ' + zhVoices[0].name);
+                    } else {
+                        log('未找到中文语音，使用默认');
+                    }
+                    
+                    let resolved = false;
+                    
+                    utterance.onstart = () => {
+                        log('前端TTS开始播放');
+                    };
+                    
+                    utterance.onend = () => {
+                        if (resolved) return;
+                        resolved = true;
+                        log('前端TTS播放结束');
+                        isSpeaking = false;
+                        ttsStatus.classList.remove('show');
+                        stopWaveAnimation();
+                        if (isContinuousMode) {
+                            setTimeout(() => startListening(), 300);
+                        }
+                        resolve(true);
+                    };
+                    
+                    utterance.onerror = (e) => {
+                        if (resolved) return;
+                        resolved = true;
+                        log('前端TTS错误:', e.error);
+                        resolve(false);
+                    };
+                    
+                    window.speechSynthesis.speak(utterance);
+                    
+                    setTimeout(() => {
+                        if (!resolved && !window.speechSynthesis.speaking) {
+                            resolved = true;
+                            log('前端TTS超时，可能被浏览器阻止');
+                            resolve(false);
+                        }
+                    }, 3000);
+                } catch (e) {
+                    log('前端TTS异常:', e);
+                    resolve(false);
+                }
+            });
+        }
+
+        function splitTextToSegments(text) {
+            const result = [];
+            let buffer = '';
+            for (let i = 0; i < text.length; i++) {
+                buffer += text[i];
+                if (buffer.length >= 40 && /[。！？.!?;\n]/.test(text[i])) {
+                    const segment = buffer.trim();
+                    if (segment) result.push(segment);
+                    buffer = '';
+                }
+            }
+            const remaining = buffer.trim();
+            if (remaining) result.push(remaining);
+            return result;
+        }
+
+        async function fetchSegment(batchId, index) {
+            const label = `段${index + 1}`;
+            const timeoutMs = 30000;
+            log(`${label} 拉取音频（超时${timeoutMs}ms）...`);
+            const startTime = Date.now();
+
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+            try {
+                const response = await fetch(`/api/tts/segment/${batchId}/${index}`, {
+                    signal: controller.signal
+                });
+                clearTimeout(timeoutId);
+                const elapsed = Date.now() - startTime;
+                log(`${label} 响应到达，状态=${response.status}，耗时${elapsed}ms`);
+
+                if (!response.ok) {
+                    const errText = await response.text();
+                    log(`${label} ⚠️ 拉取失败: ${response.status} ${errText}`);
+                    return null;
+                }
+
+                const blob = await response.blob();
+                log(`${label} Blob接收完成，size=${blob.size} bytes`);
+                if (blob.size < 100) {
+                    log(`${label} ⚠️ 音频太小（${blob.size} bytes）`);
+                    return null;
+                }
+                return blob;
+            } catch (e) {
+                clearTimeout(timeoutId);
+                const elapsed = Date.now() - startTime;
+                if (e.name === 'AbortError') {
+                    log(`${label} ⚠️ 拉取超时（${timeoutMs}ms，实际${elapsed}ms）`);
+                } else {
+                    log(`${label} ⚠️ 拉取异常: ${e.message}，耗时${elapsed}ms`);
+                }
+                return null;
+            }
+        }
+
+        async function playAudioBlob(blob, segIndex) {
+            const label = segIndex !== undefined ? `段${segIndex + 1}` : '音频';
+            const audioUrl = URL.createObjectURL(blob);
+            log(`${label} 创建播放URL，blob size=${blob.size}`);
+
+            for (let retry = 0; retry < 3; retry++) {
+                try {
+                    await new Promise((resolve, reject) => {
+                        const audio = new Audio(audioUrl);
+
+                        audio.onloadedmetadata = () => {
+                            log(`${label} 音频元数据就绪，时长=${audio.duration.toFixed(2)}s`);
+                        };
+
+                        audio.onended = () => {
+                            log(`${label} 播放正常结束`);
+                            URL.revokeObjectURL(audioUrl);
+                            resolve();
+                        };
+
+                        audio.onerror = () => {
+                            const code = audio.error ? audio.error.code : 'unknown';
+                            const codes = { 1: 'ABORTED', 2: 'NETWORK', 3: 'DECODE', 4: 'SRC_NOT_SUPPORTED' };
+                            log(`${label} ⚠️ audio.onerror，code=${code}(${codes[code] || '?'})`);
+                            reject(new Error(`音频错误code=${code}`));
+                        };
+
+                        audio.play().then(() => {
+                            log(`${label} play()调用成功，开始播放`);
+                        }).catch(err => {
+                            log(`${label} ⚠️ play()被拒绝: ${err.message}`);
+                            reject(err);
+                        });
+                    });
+                    return;
+                } catch (e) {
+                    log(`${label} 播放重试 ${retry + 1}/3 失败: ${e.message}`);
+                    if (retry < 2) {
+                        await new Promise(r => setTimeout(r, 200));
+                    }
+                }
+            }
+
+            URL.revokeObjectURL(audioUrl);
+            log(`${label} ❌ 3次重试均失败，放弃此段`);
+            throw new Error('音频播放失败（重试3次仍失败）');
+        }
+
+        async function tryBackendTTS(text) {
+            let batchId = null;
+            try {
+                log('请求后端TTS...');
+                log('文本长度: ' + text.length + ' 字符');
+                initAudioContext();
+
+                if (!audioContext) {
+                    throw new Error('AudioContext未初始化');
+                }
+
+                const segments = splitTextToSegments(text);
+                log('分割成 ' + segments.length + ' 段');
+                segments.forEach((seg, i) => {
+                    log(`段${i + 1} (${seg.length}字): "${seg.slice(0, 30)}${seg.length > 30 ? '...' : ''}"`);
+                });
+
+                if (segments.length === 0) {
+                    throw new Error('没有可朗读的内容');
+                }
+
+                log('发送批量TTS请求，后端并发生成...');
+                const batchStartTime = Date.now();
+                const batchRes = await fetch('/api/tts/batch', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ segments })
+                });
+
+                if (!batchRes.ok) {
+                    throw new Error('批量请求失败: ' + batchRes.status);
+                }
+
+                const batchData = await batchRes.json();
+                batchId = batchData.batchId;
+                const total = batchData.total;
+                log(`批量请求已接受，batchId=${batchId}，共${total}段，后端正在并发生成`);
+
+                for (let i = 0; i < total; i++) {
+                    const blob = await fetchSegment(batchId, i);
+                    if (blob) {
+                        log(`段${i + 1} 开始播放，blob size=${blob.size}`);
+                        try {
+                            await playAudioBlob(blob, i);
+                            log(`段${i + 1} 播放完成 ✓`);
+                        } catch (e) {
+                            log(`段${i + 1} 播放失败 ✗: ${e.message}，跳过继续`);
+                        }
+                    } else {
+                        log(`段${i + 1} 无音频数据，跳过 ✗`);
+                    }
+                }
+
+                const totalElapsed = ((Date.now() - batchStartTime) / 1000).toFixed(1);
+                log(`所有段处理完成，总耗时${totalElapsed}s`);
+
+            } catch (e) {
+                log('后端TTS失败:', e.message || e);
+            } finally {
+                if (batchId) {
+                    fetch(`/api/tts/batch/${batchId}`, { method: 'DELETE' }).catch(() => {});
+                }
+                isSpeaking = false;
+                ttsStatus.classList.remove('show');
+                stopWaveAnimation();
+                if (isContinuousMode) {
+                    setTimeout(() => startListening(), 300);
+                }
+            }
+        }
+
+        continuousBtn.addEventListener('click', () => {
+            isContinuousMode = !isContinuousMode;
+            continuousBtn.classList.toggle('active', isContinuousMode);
+            log('连续对话模式: ' + (isContinuousMode ? '开启' : '关闭'));
+            
+            if (isContinuousMode && !isListening && !isSpeaking) {
+                startListening();
+            }
+        });
+
+        function updateSendBtn() {
+            sendBtn.classList.toggle('active', textInput.value.trim().length > 0);
+        }
+
+        sendBtn.addEventListener('click', () => {
+            unlockSpeech();
+            unlockAudioPlay();
+            initAudioContext();
+            sendMessage(textInput.value);
+        });
+        textInput.addEventListener('input', updateSendBtn);
+        textInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                unlockSpeech();
+                unlockAudioPlay();
+                initAudioContext();
+                sendMessage(textInput.value);
+            }
+        });
+
+        let audioContext = null;
+        let mediaRecorder = null;
+        let audioChunks = [];
+        let isSpeechReady = false;
+        let vadAnalyser = null;
+        let vadStream = null;
+        let vadTimer = null;
+        let hasSpeechStarted = false;
+        let silenceStartTime = 0;
+        const SILENCE_THRESHOLD = 800;
+        const VOLUME_THRESHOLD = 8;
+        const MAX_RECORD_TIME = 30000;
+
+        function initAudioContext() {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioContext.state === 'suspended') {
+                audioContext.resume();
+            }
+        }
+
+        function startVAD() {
+            const bufferLength = vadAnalyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+            hasSpeechStarted = false;
+            silenceStartTime = 0;
+            const recordStartTime = Date.now();
+
+            vadTimer = setInterval(() => {
+                vadAnalyser.getByteFrequencyData(dataArray);
+
+                let sum = 0;
+                for (let i = 0; i < bufferLength; i++) {
+                    sum += dataArray[i];
+                }
+                const avgVolume = sum / bufferLength;
+
+                if (Date.now() - recordStartTime > MAX_RECORD_TIME) {
+                    log('录音超时，自动停止');
+                    stopRecording();
+                    return;
+                }
+
+                if (!hasSpeechStarted) {
+                    if (avgVolume > VOLUME_THRESHOLD) {
+                        hasSpeechStarted = true;
+                        log('检测到说话开始, 音量: ' + avgVolume.toFixed(1));
+                        voiceStatus.textContent = '🎙️ 正在听你说...';
+                    }
+                } else {
+                    if (avgVolume < VOLUME_THRESHOLD) {
+                        if (silenceStartTime === 0) {
+                            silenceStartTime = Date.now();
+                        } else if (Date.now() - silenceStartTime > SILENCE_THRESHOLD) {
+                            log('检测到说话结束(静音' + SILENCE_THRESHOLD + 'ms), 音量: ' + avgVolume.toFixed(1));
+                            stopRecording();
+                        }
+                    } else {
+                        silenceStartTime = 0;
+                    }
+                }
+            }, 100);
+        }
+
+        function stopVAD() {
+            if (vadTimer) {
+                clearInterval(vadTimer);
+                vadTimer = null;
+            }
+        }
+
+        function stopRecording() {
+            stopVAD();
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                mediaRecorder.stop();
+            }
+        }
+
+        async function initSpeechRecognition() {
+            if (isSpeechReady) return;
+            isSpeechReady = true;
+            log('语音识别已就绪（科大讯飞）');
+            addMessage('✅ 语音识别已就绪（科大讯飞）', false);
+        }
+
+        async function transcribeAudio(audioBlob) {
+            try {
+                log('发送音频到科大讯飞ASR...');
+                const wavBuffer = await convertToWav(await audioBlob.arrayBuffer());
+                const uint8Array = new Uint8Array(wavBuffer);
+                let binary = '';
+                const chunkSize = 8192;
+                for (let i = 0; i < uint8Array.length; i += chunkSize) {
+                    binary += String.fromCharCode.apply(null, uint8Array.slice(i, i + chunkSize));
+                }
+                const base64Audio = btoa(binary);
+                log('音频大小: ' + wavBuffer.byteLength + ' bytes, Base64长度: ' + base64Audio.length);
+
+                const response = await fetch('/api/asr', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ audio: base64Audio })
+                });
+
+                if (!response.ok) {
+                    const errText = await response.text();
+                    log('ASR请求失败: ' + response.status + ' ' + errText);
+                    return '';
+                }
+
+                const data = await response.json();
+                log('科大讯飞识别结果: ' + data.text);
+                return data.text || '';
+            } catch (e) {
+                log('ASR错误:', e.message || e);
+                return '';
+            }
+        }
+
+        async function convertToWav(arrayBuffer) {
+            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+            
+            const sampleRate = 16000;
+            const offlineContext = new OfflineAudioContext(1, audioBuffer.length * (sampleRate / audioBuffer.sampleRate), sampleRate);
+            const source = offlineContext.createBufferSource();
+            source.buffer = audioBuffer;
+            source.connect(offlineContext.destination);
+            source.start(0);
+            
+            const resampledBuffer = await offlineContext.startRendering();
+            
+            const wavBuffer = new ArrayBuffer(44 + resampledBuffer.length * 2);
+            const view = new DataView(wavBuffer);
+            
+            const writeString = (offset, string) => {
+                for (let i = 0; i < string.length; i++) {
+                    view.setUint8(offset + i, string.charCodeAt(i));
+                }
+            };
+            
+            writeString(0, 'RIFF');
+            view.setUint32(4, 36 + resampledBuffer.length * 2, true);
+            writeString(8, 'WAVE');
+            writeString(12, 'fmt ');
+            view.setUint32(16, 16, true);
+            view.setUint16(20, 1, true);
+            view.setUint16(22, 1, true);
+            view.setUint32(24, sampleRate, true);
+            view.setUint32(28, sampleRate * 2, true);
+            view.setUint16(32, 2, true);
+            view.setUint16(34, 16, true);
+            writeString(36, 'data');
+            view.setUint32(40, resampledBuffer.length * 2, true);
+            
+            const channelData = resampledBuffer.getChannelData(0);
+            for (let i = 0; i < channelData.length; i++) {
+                const sample = Math.max(-1, Math.min(1, channelData[i]));
+                view.setInt16(44 + i * 2, sample < 0 ? sample * 0x8000 : sample * 0x7FFF, true);
+            }
+            
+            return wavBuffer;
+        }
+
+        function nativeSpeechRecognition() {
+            return new Promise((resolve) => {
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                if (!SpeechRecognition) {
+                    resolve('');
+                    return;
+                }
+                
+                const recognition = new SpeechRecognition();
+                recognition.lang = 'zh-CN';
+                recognition.continuous = false;
+                recognition.interimResults = false;
+                recognition.maxAlternatives = 1;
+                
+                recognition.onresult = (e) => {
+                    const text = e.results[0][0].transcript;
+                    resolve(text);
+                };
+                
+                recognition.onerror = () => resolve('');
+                recognition.onend = () => resolve('');
+                
+                recognition.start();
+            });
+        }
+
+        async function startListening() {
+            if (isListening || isSpeaking) {
+                log('正在录音或播放中，跳过');
+                return;
+            }
+
+            if (!isSpeechReady) {
+                await initSpeechRecognition();
+            }
+
+            log('开始录音...');
+            
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                vadStream = stream;
+                
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const source = audioContext.createMediaStreamSource(stream);
+                vadAnalyser = audioContext.createAnalyser();
+                vadAnalyser.fftSize = 512;
+                source.connect(vadAnalyser);
+                
+                mediaRecorder = new MediaRecorder(stream);
+                audioChunks = [];
+                
+                mediaRecorder.ondataavailable = (e) => {
+                    if (e.data.size > 0) {
+                        audioChunks.push(e.data);
+                    }
+                };
+                
+                mediaRecorder.onstop = async () => {
+                    stream.getTracks().forEach(track => track.stop());
+                    if (audioContext) {
+                        audioContext.close();
+                        audioContext = null;
+                    }
+                    
+                    isListening = false;
+                    voiceBtn.classList.remove('active');
+                    voiceStatus.classList.remove('show');
+                    log('录音结束，开始识别...');
+                    
+                    if (audioChunks.length > 0) {
+                        voiceStatus.textContent = '🔄 正在识别...';
+                        voiceStatus.classList.add('show');
+                        
+                        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                        const text = await transcribeAudio(audioBlob);
+                        
+                        voiceStatus.classList.remove('show');
+                        
+                        if (text && text.trim()) {
+                            log(`📝 识别结果: ${text}`);
+                            sendMessage(text);
+                        } else {
+                            log('⚠️ 未识别到语音内容');
+                            if (isContinuousMode) {
+                                setTimeout(() => startListening(), 1000);
+                            }
+                        }
+                    }
+                };
+                
+                mediaRecorder.start();
+                isListening = true;
+                voiceBtn.classList.add('active');
+                voiceStatus.textContent = '🎤 请开始说话...';
+                voiceStatus.classList.add('show');
+                log('✅ 录音已开始，等待说话...');
+                
+                startVAD();
+                
+            } catch (e) {
+                log('❌ 录音失败:', e.message);
+                addMessage('⚠️ 无法访问麦克风: ' + e.message, false);
+            }
+        }
+
+        voiceBtn.addEventListener('click', () => {
+            unlockSpeech();
+            unlockAudioPlay();
+            if (isListening) {
+                log('停止录音...');
+                if (mediaRecorder) {
+                    mediaRecorder.stop();
+                }
+                return;
+            }
+            startListening();
+        });
+
+        window.addEventListener('load', () => {
+            log('页面加载完成');
+            connectWebSocket();
+            initSpeechRecognition();
+        });
+    </script>
+</body>
+</html>

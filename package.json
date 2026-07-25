@@ -1,0 +1,25 @@
+{
+  "name": "pipi-voice-assistant",
+  "version": "1.0.0",
+  "description": "基于Ollama的本地语音助手H5应用",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^17.4.2",
+    "express": "^4.19.2",
+    "node-fetch": "^3.3.2",
+    "ws": "^8.17.1"
+  },
+  "keywords": [
+    "ollama",
+    "voice-assistant",
+    "h5",
+    "websocket"
+  ],
+  "author": "",
+  "license": "MIT"
+}

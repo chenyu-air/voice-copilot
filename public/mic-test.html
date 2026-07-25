@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>麦克风测试</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .log { background: #f0f0f0; padding: 10px; margin: 10px 0; border-radius: 5px; font-family: monospace; font-size: 12px; }
+        .success { color: green; }
+        .error { color: red; }
+        .info { color: blue; }
+        button { padding: 10px 20px; margin: 5px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        button:disabled { background: #ccc; }
+        .audio-level { height: 20px; background: #e0e0e0; border-radius: 10px; margin: 10px 0; overflow: hidden; }
+        .audio-bar { height: 100%; background: #007bff; width: 0%; transition: width 0.1s; }
+    </style>
+</head>
+<body>
+    <h1>🎤 麦克风测试</h1>
+    
+    <button id="testMic">测试麦克风</button>
+    <button id="testRecognition">测试语音识别</button>
+    
+    <div class="audio-level">
+        <div class="audio-bar" id="audioBar"></div>
+    </div>
+    
+    <div id="log"></div>
+
+    <script>
+        const testMicBtn = document.getElementById('testMic');
+        const testRecBtn = document.getElementById('testRecognition');
+        const audioBar = document.getElementById('audioBar');
+        const logDiv = document.getElementById('log');
+        
+        let audioContext = null;
+        let analyser = null;
+        let dataArray = null;
+        let animationId = null;
+
+        function log(msg, type = 'info') {
+            const p = document.createElement('p');
+            p.className = type;
+            p.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+            logDiv.appendChild(p);
+            logDiv.scrollTop = logDiv.scrollHeight;
+            console.log(msg);
+        }
+
+        testMicBtn.addEventListener('click', async () => {
+            log('开始测试麦克风...', 'info');
+            
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                log('✅ 麦克风访问成功！', 'success');
+                
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                analyser = audioContext.createAnalyser();
+                const source = audioContext.createMediaStreamSource(stream);
+                source.connect(analyser);
+                analyser.fftSize = 256;
+                dataArray = new Uint8Array(analyser.frequencyBinCount);
+                
+                log('🎵 开始监听音频输入...', 'info');
+                
+                function updateLevel() {
+                    analyser.getByteFrequencyData(dataArray);
+                    let sum = 0;
+                    for (let i = 0; i < dataArray.length; i++) {
+                        sum += dataArray[i];
+                    }
+                    const avg = sum / dataArray.length;
+                    const percentage = Math.min(100, (avg / 128) * 100);
+                    audioBar.style.width = percentage + '%';
+                    
+                    if (percentage > 10) {
+                        log(`📢 检测到声音！音量: ${Math.round(percentage)}%`, 'success');
+                    }
+                    
+                    animationId = requestAnimationFrame(updateLevel);
+                }
+                
+                updateLevel();
+                
+            } catch (e) {
+                log(`❌ 麦克风访问失败: ${e.message}`, 'error');
+                log('请检查浏览器麦克风权限设置', 'error');
+            }
+        });
+
+        testRecBtn.addEventListener('click', () => {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            
+            if (!SpeechRecognition) {
+                log('❌ 浏览器不支持语音识别', 'error');
+                return;
+            }
+            
+            log('开始测试语音识别...', 'info');
+            
+            const recognition = new SpeechRecognition();
+            recognition.lang = 'zh-CN';
+            recognition.interimResults = true;
+            
+            recognition.onstart = () => {
+                log('✅ 语音识别已启动', 'success');
+                testRecBtn.textContent = '停止测试';
+            };
+            
+            recognition.onend = () => {
+                log('🔚 语音识别已结束', 'info');
+                testRecBtn.textContent = '测试语音识别';
+            };
+            
+            recognition.onresult = (e) => {
+                let text = '';
+                for (let i = e.resultIndex; i < e.results.length; ++i) {
+                    text += e.results[i][0].transcript;
+                }
+                log(`📝 识别结果: ${text}`, 'success');
+            };
+            
+            recognition.onerror = (e) => {
+                log(`❌ 语音识别错误: ${e.error}`, 'error');
+                testRecBtn.textContent = '测试语音识别';
+            };
+            
+            try {
+                recognition.start();
+            } catch (e) {
+                log(`❌ 启动语音识别失败: ${e.message}`, 'error');
+            }
+        });
+
+        log('页面加载完成', 'info');
+        log('当前协议: ' + window.location.protocol, 'info');
+        log('当前主机: ' + window.location.host, 'info');
+    </script>
+</body>
+</html>

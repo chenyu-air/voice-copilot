@@ -1,0 +1,32 @@
+# 依赖
+node_modules/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# 敏感文件（证书和私钥）
+certs/
+.env
+
+# 临时文件
+temp_tts_*.mp3
+*.tmp
+*.log
+
+# 测试音频文件
+test*.mp3
+
+# 备份文件
+server_backup.js
+public/index_backup.html
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 操作系统
+.DS_Store
+Thumbs.db

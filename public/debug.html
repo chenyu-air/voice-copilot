@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>调试页面</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body { font-family: Arial, sans-serif; padding: 15px; }
+        .log { background: #f0f0f0; padding: 10px; margin: 10px 0; border-radius: 5px; font-family: monospace; font-size: 12px; height: 300px; overflow-y: auto; }
+        .success { color: green; }
+        .error { color: red; }
+        .info { color: blue; }
+        button { padding: 10px 20px; margin: 5px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        .chat-area { border: 1px solid #ccc; padding: 10px; margin: 10px 0; min-height: 100px; }
+        .chat-message { margin: 5px 0; }
+        .user { color: blue; }
+        .assistant { color: green; }
+    </style>
+</head>
+<body>
+    <h1>🔍 调试页面</h1>
+    
+    <button id="testRec">测试语音识别</button>
+    <button id="sendTest">发送测试消息</button>
+    
+    <div class="chat-area" id="chatArea"></div>
+    
+    <div class="log" id="log"></div>
+
+    <script>
+        const testRecBtn = document.getElementById('testRec');
+        const sendTestBtn = document.getElementById('sendTest');
+        const chatArea = document.getElementById('chatArea');
+        const logDiv = document.getElementById('log');
+        
+        let ws = null;
+        let messages = [];
+
+        function log(msg, type = 'info') {
+            const p = document.createElement('p');
+            p.className = type;
+            p.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+            logDiv.appendChild(p);
+            logDiv.scrollTop = logDiv.scrollHeight;
+            console.log(msg);
+        }
+
+        function addMessage(text, isUser) {
+            const div = document.createElement('div');
+            div.className = 'chat-message ' + (isUser ? 'user' : 'assistant');
+            div.textContent = (isUser ? '👤 ' : '🤖 ') + text;
+            chatArea.appendChild(div);
+        }
+
+        function connectWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/`;
+            log('连接WebSocket: ' + wsUrl);
+            
+            ws = new WebSocket(wsUrl);
+
+            ws.onopen = () => {
+                log('✅ WebSocket连接成功', 'success');
+                fetch('/api/models').then(res => res.json()).then(data => {
+                    log('模型列表: ' + JSON.stringify(data.models), 'success');
+                });
+            };
+
+            ws.onmessage = (e) => {
+                try {
+                    const data = JSON.parse(e.data);
+                    if (data.type === 'stream') {
+                        addMessage(data.content, false);
+                    } else if (data.type === 'done') {
+                        log('响应完成', 'success');
+                    } else if (data.type === 'error') {
+                        addMessage('错误: ' + data.message, false);
+                    }
+                } catch (err) {
+                    log('解析消息失败: ' + err.message, 'error');
+                }
+            };
+
+            ws.onclose = () => log('WebSocket关闭', 'error');
+            ws.onerror = (e) => log('WebSocket错误: ' + e.message, 'error');
+        }
+
+        let recognition = null;
+        let isListening = false;
+
+        testRecBtn.addEventListener('click', () => {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            
+            if (!SpeechRecognition) {
+                log('浏览器不支持语音识别', 'error');
+                return;
+            }
+
+            if (isListening) {
+                log('停止语音识别...');
+                if (recognition) {
+                    recognition.stop();
+                }
+                return;
+            }
+            
+            log('开始语音识别...');
+            
+            recognition = new SpeechRecognition();
+            recognition.lang = 'zh-CN';
+            recognition.interimResults = true;
+            
+            recognition.onstart = () => {
+                isListening = true;
+                log('✅ 语音识别已启动', 'success');
+                testRecBtn.textContent = '停止';
+            };
+            
+            recognition.onend = () => {
+                isListening = false;
+                recognition = null;
+                log('🔚 语音识别已结束');
+                testRecBtn.textContent = '测试语音识别';
+            };
+            
+            recognition.onresult = (e) => {
+                let text = '';
+                for (let i = e.resultIndex; i < e.results.length; ++i) {
+                    text += e.results[i][0].transcript;
+                }
+                log(`📝 识别结果: ${text}`, 'success');
+                addMessage(text, true);
+                
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    messages.push({ role: 'user', content: text });
+                    ws.send(JSON.stringify({
+                        type: 'chat',
+                        model: 'Qwen3.5:latest',
+                        messages: messages
+                    }));
+                    log('消息已发送', 'success');
+                } else {
+                    log('WebSocket未连接', 'error');
+                }
+            };
+            
+            recognition.onerror = (e) => {
+                log(`❌ 语音识别错误: ${e.error}`, 'error');
+                if (e.error === 'aborted') {
+                    log('提示: aborted通常是因为同时启动了多个识别实例', 'info');
+                }
+                isListening = false;
+                recognition = null;
+                testRecBtn.textContent = '测试语音识别';
+            };
+            
+            try {
+                recognition.start();
+            } catch (e) {
+                log(`❌ 启动失败: ${e.message}`, 'error');
+                isListening = false;
+            }
+        });
+
+        sendTestBtn.addEventListener('click', () => {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                const text = '你好';
+                addMessage(text, true);
+                messages.push({ role: 'user', content: text });
+                ws.send(JSON.stringify({
+                    type: 'chat',
+                    model: 'Qwen3.5:latest',
+                    messages: messages
+                }));
+                log('测试消息已发送', 'success');
+            } else {
+                log('WebSocket未连接', 'error');
+            }
+        });
+
+        log('页面加载完成');
+        connectWebSocket();
+    </script>
+</body>
+</html>

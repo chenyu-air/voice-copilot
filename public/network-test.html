@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>网络测试</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .log { background: #333; color: #fff; padding: 10px; border-radius: 5px; font-family: monospace; font-size: 12px; height: 400px; overflow-y: auto; }
+        .success { color: #4CAF50; }
+        .error { color: #f44336; }
+        .warning { color: #ff9800; }
+        button { padding: 10px 20px; margin: 5px; background: #007bff; color: white; border: none; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>🌐 网络测试</h1>
+    
+    <button onclick="testNetwork()">测试网络连接</button>
+    <button onclick="testSpeechRecognition()">测试语音识别</button>
+    
+    <div class="log" id="log"></div>
+
+    <script>
+        const logDiv = document.getElementById('log');
+        
+        function log(msg, type = 'info') {
+            const p = document.createElement('p');
+            p.className = type;
+            p.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+            logDiv.appendChild(p);
+            logDiv.scrollTop = logDiv.scrollHeight;
+            console.log(msg);
+        }
+
+        function testNetwork() {
+            log('🌐 开始测试网络连接...');
+            
+            // 测试Google语音服务
+            fetch('https://www.google.com', { method: 'HEAD' })
+                .then(() => log('✅ Google连接成功', 'success'))
+                .catch(() => log('❌ Google连接失败', 'error'));
+            
+            // 测试网络状态
+            if (navigator.onLine) {
+                log('✅ 当前网络在线', 'success');
+            } else {
+                log('❌ 当前网络离线', 'error');
+            }
+            
+            // 显示网络信息
+            log(`📊 连接类型: ${navigator.connection?.effectiveType || '未知'}`);
+            log(`📶 下载速度: ${navigator.connection?.downlink || '未知'} Mbps`);
+        }
+
+        function testSpeechRecognition() {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            
+            if (!SpeechRecognition) {
+                log('❌ 浏览器不支持语音识别', 'error');
+                return;
+            }
+            
+            log('🎙️ 开始测试语音识别...');
+            
+            const recognition = new SpeechRecognition();
+            recognition.lang = 'zh-CN';
+            recognition.continuous = false;
+            recognition.interimResults = false;
+            
+            recognition.onstart = () => {
+                log('✅ onstart: 语音识别已启动', 'success');
+                log('💡 请说话（识别器会自动停止）', 'success');
+            };
+            
+            recognition.onend = (event) => {
+                log('🔚 onend: 语音识别已结束', 'warning');
+                log(`   - 事件详情: ${JSON.stringify(event)}`, 'warning');
+            };
+            
+            recognition.onresult = (event) => {
+                log('📤 onresult: 收到识别结果', 'success');
+                for (let i = event.resultIndex; i < event.results.length; ++i) {
+                    log(`   - 识别结果: ${event.results[i][0].transcript}`, 'success');
+                }
+            };
+            
+            recognition.onerror = (event) => {
+                log(`❌ onerror: ${event.error}`, 'error');
+                
+                const errorMessages = {
+                    'not-allowed': '麦克风权限被拒绝',
+                    'no-speech': '未检测到语音（请大声说话）',
+                    'aborted': '识别被中止',
+                    'service-not-allowed': '语音服务不可用',
+                    'network': '网络错误（需要联网）',
+                    'language-not-supported': '语言不支持'
+                };
+                
+                log(`   - 错误说明: ${errorMessages[event.error] || '未知错误'}`, 'error');
+                
+                if (event.error === 'network') {
+                    log('💡 解决方案: 请确保网络连接正常，Web Speech API需要联网', 'warning');
+                }
+                
+                if (event.error === 'service-not-allowed') {
+                    log('💡 解决方案: 请使用最新版Chrome浏览器', 'warning');
+                }
+            };
+            
+            recognition.onnomatch = () => {
+                log('⚠️ onnomatch: 未匹配到语音', 'warning');
+            };
+            
+            try {
+                recognition.start();
+            } catch (e) {
+                log(`❌ 启动失败: ${e.message}`, 'error');
+            }
+        }
+
+        log('✅ 页面加载完成');
+        testNetwork();
+    </script>
+</body>
+</html>
