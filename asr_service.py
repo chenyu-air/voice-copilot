@@ -10,6 +10,9 @@ import hashlib
 import urllib.parse
 import ssl
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 app = FastAPI(title="iFlytek ASR Service")
 
