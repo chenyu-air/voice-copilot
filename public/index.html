@@ -153,7 +153,7 @@
             <div class="wave-ring"></div>
             <div class="wave-ring"></div>
             <div class="avatar-wrapper">
-                <img src="/avatar.png" alt="AI Avatar">
+                <img src="/av_gif.gif" alt="AI Avatar">
             </div>
         </div>
 
@@ -570,37 +570,38 @@
 
         async function playAudioBlob(blob, segIndex) {
             const label = segIndex !== undefined ? `段${segIndex + 1}` : '音频';
-            const audioUrl = URL.createObjectURL(blob);
-            log(`${label} 创建播放URL，blob size=${blob.size}`);
+            log(`${label} 开始解码，blob size=${blob.size}`);
+
+            // 确保 AudioContext 处于运行状态（iOS 后台可能挂起）
+            if (!audioContext) {
+                initAudioContext();
+            }
+            if (audioContext.state === 'suspended') {
+                await audioContext.resume();
+            }
 
             for (let retry = 0; retry < 3; retry++) {
                 try {
+                    const arrayBuffer = await blob.arrayBuffer();
+                    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                    log(`${label} 解码成功，时长=${audioBuffer.duration.toFixed(2)}s`);
+
                     await new Promise((resolve, reject) => {
-                        const audio = new Audio(audioUrl);
+                        const source = audioContext.createBufferSource();
+                        source.buffer = audioBuffer;
+                        source.connect(audioContext.destination);
 
-                        audio.onloadedmetadata = () => {
-                            log(`${label} 音频元数据就绪，时长=${audio.duration.toFixed(2)}s`);
-                        };
-
-                        audio.onended = () => {
+                        source.onended = () => {
                             log(`${label} 播放正常结束`);
-                            URL.revokeObjectURL(audioUrl);
                             resolve();
                         };
-
-                        audio.onerror = () => {
-                            const code = audio.error ? audio.error.code : 'unknown';
-                            const codes = { 1: 'ABORTED', 2: 'NETWORK', 3: 'DECODE', 4: 'SRC_NOT_SUPPORTED' };
-                            log(`${label} ⚠️ audio.onerror，code=${code}(${codes[code] || '?'})`);
-                            reject(new Error(`音频错误code=${code}`));
+                        source.onerror = (e) => {
+                            log(`${label} ⚠️ 播放错误`);
+                            reject(new Error('音频播放错误'));
                         };
 
-                        audio.play().then(() => {
-                            log(`${label} play()调用成功，开始播放`);
-                        }).catch(err => {
-                            log(`${label} ⚠️ play()被拒绝: ${err.message}`);
-                            reject(err);
-                        });
+                        source.start();
+                        log(`${label} 开始播放`);
                     });
                     return;
                 } catch (e) {
@@ -611,7 +612,6 @@
                 }
             }
 
-            URL.revokeObjectURL(audioUrl);
             log(`${label} ❌ 3次重试均失败，放弃此段`);
             throw new Error('音频播放失败（重试3次仍失败）');
         }
